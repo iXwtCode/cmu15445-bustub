@@ -14,8 +14,8 @@ auto Trie::Get(std::string_view key) const -> const T * {
   // Otherwise, return the value.
 
   auto vec_node = Walk(key, root_);
-  if (root_ == nullptr) return nullptr;
-  if (key.size() == 0) {
+  if (root_ == nullptr) { return nullptr; }
+  if (key.empty()) {
     if (root_->is_value_node_) {
       auto ptr = dynamic_cast<const TrieNodeWithValue<T> *>(root_.get());
       if (ptr) {
@@ -25,7 +25,8 @@ auto Trie::Get(std::string_view key) const -> const T * {
     return nullptr;
   }
 
-  int n = key.size(), m = vec_node.size();
+  int n = key.size();
+  int m = vec_node.size();
   // key路径存在
   if (m == n) {
     auto ptr_cur_node = vec_node[m - 1];
@@ -51,7 +52,8 @@ auto Trie::Put(std::string_view key, T value) const -> Trie {
 
   auto vec_node = Walk(key, root_);
   std::shared_ptr<const TrieNode> new_root;
-  int n = key.size(), m = vec_node.size();
+  int n = key.size();
+  int m = vec_node.size();
 
   if (vec_node.empty()) {
     if (n == 0) {
@@ -138,7 +140,8 @@ auto Trie::Remove(std::string_view key) const -> Trie {
   auto new_root = std::shared_ptr<const TrieNode>(root_->Clone());
   auto vec_node = Walk(key, new_root);
 
-  int n = key.size(), m = vec_node.size();
+  int n = key.size();
+  int m = vec_node.size();
 
   // key存在
   if (n == m) {
@@ -154,7 +157,7 @@ auto Trie::Remove(std::string_view key) const -> Trie {
         --l;
       }
       if (l == 0) {
-        if (root_->children_.empty()) return Trie(nullptr);
+        if (root_->children_.empty()) { return Trie(nullptr); }
         new_root = std::shared_ptr(root_->Clone());
         auto p = std::const_pointer_cast<TrieNode>(new_root);
         p->children_.erase(key[0]);
@@ -200,7 +203,7 @@ auto Trie::Walk(std::string_view key, std::shared_ptr<const TrieNode> ptr_cur_no
 
   int level = 0;
   int n = key.size();
-  while (level < n && ptr_cur_node->children_.count(key[level])) {
+  while (level < n && ptr_cur_node->children_.count(key[level]) != 0) {
     res.push_back(ptr_cur_node);
     ptr_cur_node = ptr_cur_node->children_.at(key[level++]);
   }
