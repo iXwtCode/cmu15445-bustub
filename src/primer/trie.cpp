@@ -14,7 +14,9 @@ auto Trie::Get(std::string_view key) const -> const T * {
   // Otherwise, return the value.
 
   auto vec_node = Walk(key, root_);
-  if (root_ == nullptr) { return nullptr; }
+  if (root_ == nullptr) {
+    return nullptr;
+  }
   if (key.empty()) {
     if (root_->is_value_node_) {
       auto ptr = dynamic_cast<const TrieNodeWithValue<T> *>(root_.get());
@@ -157,7 +159,9 @@ auto Trie::Remove(std::string_view key) const -> Trie {
         --l;
       }
       if (l == 0) {
-        if (root_->children_.empty()) { return Trie(nullptr); }
+        if (root_->children_.empty()) {
+          return Trie(nullptr);
+        }
         new_root = std::shared_ptr(root_->Clone());
         auto p = std::const_pointer_cast<TrieNode>(new_root);
         p->children_.erase(key[0]);
