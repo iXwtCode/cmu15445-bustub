@@ -105,7 +105,9 @@ class Trie {
   // Create a new trie with the given root.
   explicit Trie(std::shared_ptr<const TrieNode> root) : root_(std::move(root)) {}
 
-  auto Walk(std::string_view key, std::shared_ptr<const TrieNode> ptr_cur_node) const -> std::vector<std::shared_ptr<const TrieNode>>;
+  auto Walk(std::string_view key, std::shared_ptr<const TrieNode> ptr_cur_node) const
+      -> std::vector<std::shared_ptr<const TrieNode>>;
+
  public:
   // Create an empty trie.
   Trie() = default;
