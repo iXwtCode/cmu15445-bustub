@@ -27,12 +27,29 @@ enum class AccessType { Unknown = 0, Get, Scan };
 
 class LRUKNode {
  public:
+  explicit LRUKNode(size_t K) : K_(K) {}
+  LRUKNode() = default;
+
+  void IcreaseTimes() { ++times; }
+
+  auto GetFrameId() const -> frame_id_t { return fid_; }
+
+  auto GetTimes() const -> size_t { return times; }
+
+  auto IsEvictable() const -> bool { return is_evictable_; }
+
+  void SetEvictable(bool evictable) { is_evictable_ = evictable; }
+
+  void AddHistory(size_t time);
+  auto GetPreKthTime() const -> size_t;
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
-
+ private:
   std::list<size_t> history_;
-  size_t k_;
-  [[maybe_unused]] frame_id_t fid_;
+  size_t K_;
+  size_t times{0};
+  frame_id_t fid_{0};
+  std::list<size_t>::iterator last_kth_pre_time;
   bool is_evictable_{false};
 };
 
@@ -153,16 +170,15 @@ class LRUKReplacer {
   std::unordered_map<frame_id_t, LRUKNode> node_store_;
   size_t current_timestamp_{0};
   size_t curr_size_{0};
-  size_t replacer_size_;
-  size_t k_;
+  [[maybe_unused]] size_t replacer_size_;
+  [[maybe_unused]] size_t k_;
   std::mutex latch_;
   std::list<frame_id_t> l_fid_e_;
   std::list<frame_id_t> l_fid_k_;
   std::unordered_map<frame_id_t, std::list<frame_id_t>::const_iterator> fid2iter_e_;
   std::unordered_map<frame_id_t, std::list<frame_id_t>::const_iterator> fid2iter_k_;
 
-  void AddListe(frame_id_t frame_id);
-  void AddListk(frame_id_t frame_id);
+  void AddToList(frame_id_t fid, size_t target);
 };
 
 }  // namespace bustub
