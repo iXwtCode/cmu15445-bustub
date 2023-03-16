@@ -56,10 +56,10 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   latch_.lock();
-    if(static_cast<size_t>(frame_id) > replacer_size_) {
-      latch_.unlock();
-      throw Exception("invalid frame id");
-    }
+  if (static_cast<size_t>(frame_id) > replacer_size_) {
+    latch_.unlock();
+    throw Exception("invalid frame id");
+  }
 
   if (node_store_.count(frame_id) == 0) {
     node_store_[frame_id] = LRUKNode(k_);
@@ -140,7 +140,7 @@ void LRUKReplacer::AddToList(frame_id_t fid, size_t target) {
     if (node_store_[*it].GetPreKthTime() >= target) {
       l_fid_k_.insert(it, fid);
       fid2iter_k_[fid] = --it;
-      return ;
+      return;
     }
   }
 
@@ -149,20 +149,19 @@ void LRUKReplacer::AddToList(frame_id_t fid, size_t target) {
     fid2iter_k_[fid] = --it;
   }
 }
-
 void LRUKNode::AddHistory(size_t time) {
   history_.emplace_back(time);
-  if (history_.size() == K_) {
-    last_kth_pre_time = history_.begin();
+  if (history_.size() == k_) {
+    last_kth_pre_time_ = history_.begin();
   }
-  if (history_.size() > K_) {
-    ++last_kth_pre_time;
+  if (history_.size() > k_) {
+    ++last_kth_pre_time_;
   }
 }
 
 auto LRUKNode::GetPreKthTime() const -> size_t {
-  if (history_.size() >= K_) {
-    return *last_kth_pre_time;
+  if (history_.size() >= k_) {
+    return *last_kth_pre_time_;
   }
   return 0;
 }

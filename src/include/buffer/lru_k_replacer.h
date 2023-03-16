@@ -27,14 +27,14 @@ enum class AccessType { Unknown = 0, Get, Scan };
 
 class LRUKNode {
  public:
-  explicit LRUKNode(size_t K) : K_(K) {}
+  explicit LRUKNode(size_t K) : k_(K) {}
   LRUKNode() = default;
 
-  void IcreaseTimes() { ++times; }
+  void IcreaseTimes() { ++times_; }
 
   auto GetFrameId() const -> frame_id_t { return fid_; }
 
-  auto GetTimes() const -> size_t { return times; }
+  auto GetTimes() const -> size_t { return times_; }
 
   auto IsEvictable() const -> bool { return is_evictable_; }
 
@@ -46,10 +46,10 @@ class LRUKNode {
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
  private:
   std::list<size_t> history_;
-  size_t K_;
-  size_t times{0};
+  size_t k_;
+  size_t times_{0};
   frame_id_t fid_{0};
-  std::list<size_t>::iterator last_kth_pre_time;
+  std::list<size_t>::iterator last_kth_pre_time_;
   bool is_evictable_{false};
 };
 
