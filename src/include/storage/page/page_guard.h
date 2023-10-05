@@ -38,6 +38,8 @@ class BasicPageGuard {
    */
   void Drop();
 
+  void SetDirty(bool is_dirty) { is_dirty_ = is_dirty; }
+
   /** TODO(P1): Add implementation
    *
    * @brief Move assignment for BasicPageGuard
@@ -82,7 +84,7 @@ class BasicPageGuard {
   friend class ReadPageGuard;
   friend class WritePageGuard;
 
-  BufferPoolManager *bpm_{nullptr};
+  [[maybe_unused]] BufferPoolManager *bpm_{nullptr};
   Page *page_{nullptr};
   bool is_dirty_{false};
 };
@@ -133,6 +135,8 @@ class ReadPageGuard {
    */
   ~ReadPageGuard();
 
+  void SetDirty(bool is_dirty) { guard_.SetDirty(is_dirty); }
+
   auto PageId() -> page_id_t { return guard_.PageId(); }
 
   auto GetData() -> const char * { return guard_.GetData(); }
@@ -150,7 +154,7 @@ class ReadPageGuard {
 class WritePageGuard {
  public:
   WritePageGuard() = default;
-  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) { guard_.is_dirty_ = true; }
+  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {}
   WritePageGuard(const WritePageGuard &) = delete;
   auto operator=(const WritePageGuard &) -> WritePageGuard & = delete;
 
@@ -192,6 +196,8 @@ class WritePageGuard {
    * as if you were dropping the guard.
    */
   ~WritePageGuard();
+
+  void SetDirty(bool is_dirty) { guard_.SetDirty(is_dirty); }
 
   auto PageId() -> page_id_t { return guard_.PageId(); }
 
