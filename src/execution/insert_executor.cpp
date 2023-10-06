@@ -19,7 +19,7 @@ namespace bustub {
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor))
-      , table_info_(exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())) {}
+      , table_info_(exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_)) {}
 
 void InsertExecutor::Init() {
   Tuple tup;
