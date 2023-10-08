@@ -52,8 +52,12 @@ class HashJoinExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
+  void DoLeftJoin(std::unique_ptr<AbstractExecutor> &left_ex, std::unique_ptr<AbstractExecutor> &right_ex) ;
+  void DoInnerJoin(std::unique_ptr<AbstractExecutor> &left_ex, std::unique_ptr<AbstractExecutor> &right_ex) ;
   /** The NestedLoopJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
+  std::multimap<JoinKey, JoinVal> ht_;
+  std::multimap<JoinKey, JoinVal>::iterator it_;
 };
 
 }  // namespace bustub

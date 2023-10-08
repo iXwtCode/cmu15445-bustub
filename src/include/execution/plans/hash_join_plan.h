@@ -80,4 +80,27 @@ class HashJoinPlanNode : public AbstractPlanNode {
   auto PlanNodeToString() const -> std::string override;
 };
 
+struct JoinKey {
+  /** The join keys */
+  std::vector<Value> join_keys_;
+
+  /**
+   * Compares two aggregate keys for equality.
+   * @param other the other aggregate key to be compared with
+   * @return `true` if both aggregate keys have equivalent group-by expressions, `false` otherwise
+   */
+  auto operator==(const JoinKey &other) const -> bool {
+    for (uint32_t i = 0; i < other.join_keys_.size(); i++) {
+      if (join_keys_[i].CompareEquals(other.join_keys_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+struct JoinVal {
+  /** The join val */
+  std::vector<Value> col_vals_;
+};
 }  // namespace bustub

@@ -17,15 +17,28 @@ namespace bustub {
 HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlanNode *plan,
                                    std::unique_ptr<AbstractExecutor> &&left_child,
                                    std::unique_ptr<AbstractExecutor> &&right_child)
-    : AbstractExecutor(exec_ctx) {
-  if (!(plan->GetJoinType() == JoinType::LEFT || plan->GetJoinType() == JoinType::INNER)) {
+    : AbstractExecutor(exec_ctx), plan_(plan), it_(ht_.begin()) {
+  if (plan->GetJoinType() != JoinType::LEFT && plan->GetJoinType() != JoinType::INNER) {
     // Note for 2023 Spring: You ONLY need to implement left join and inner join.
     throw bustub::NotImplementedException(fmt::format("join type {} not supported", plan->GetJoinType()));
   }
+
+  if (plan->GetJoinType() == JoinType::LEFT) {
+    DoLeftJoin(left_child, right_child);
+  } else if (plan->GetJoinType() == JoinType::INNER){
+    DoInnerJoin(left_child, right_child);
+  }
 }
 
-void HashJoinExecutor::Init() { throw NotImplementedException("HashJoinExecutor is not implemented"); }
+void HashJoinExecutor::Init() {
+  it_ = ht_.begin();
+}
 
-auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+
+  return false;
+}
+void HashJoinExecutor::DoLeftJoin(std::unique_ptr<AbstractExecutor> &left_ex, std::unique_ptr<AbstractExecutor> &right_ex) {}
+void HashJoinExecutor::DoInnerJoin(std::unique_ptr<AbstractExecutor> &left_ex, std::unique_ptr<AbstractExecutor> &right_ex) {}
 
 }  // namespace bustub
