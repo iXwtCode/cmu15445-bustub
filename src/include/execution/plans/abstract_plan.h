@@ -68,7 +68,7 @@ class AbstractPlanNode {
    * @param children The children of this plan node
    */
   AbstractPlanNode(SchemaRef output_schema, std::vector<AbstractPlanNodeRef> children)
-      : output_schema_(std::move(output_schema)), children_(std::move(children)) {}
+      : output_schema_(output_schema), children_(children) {}
 
   /** Virtual destructor. */
   virtual ~AbstractPlanNode() = default;

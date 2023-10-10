@@ -14,12 +14,16 @@
 
 #include <memory>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
+#include <optional>
 
+#include "common/util/hash_util.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
-
+#include "type/value_factory.h"
 namespace bustub {
 
 /**
@@ -52,12 +56,25 @@ class HashJoinExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
-  void DoLeftJoin(std::unique_ptr<AbstractExecutor> &left_ex, std::unique_ptr<AbstractExecutor> &right_ex) ;
-  void DoInnerJoin(std::unique_ptr<AbstractExecutor> &left_ex, std::unique_ptr<AbstractExecutor> &right_ex) ;
+  struct JoinKeyValWraper {
+    JoinKey join_key_;
+    JoinVal join_val_;
+    bool has_visited_ {false};
+  };
+  auto TryGetJoinValueByJoinKeyFromht(const JoinKey &join_key)
+              -> std::optional<std::vector<std::vector<JoinKeyValWraper>::iterator>> ;
+
   /** The NestedLoopJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
-  std::multimap<JoinKey, JoinVal> ht_;
-  std::multimap<JoinKey, JoinVal>::iterator it_;
+  std::unique_ptr<AbstractExecutor> left_child_;
+  std::unique_ptr<AbstractExecutor> right_child_;
+  std::unordered_map<JoinKey, std::vector<JoinKeyValWraper>> ht_ {};
+  std::vector<std::vector<JoinKeyValWraper>::iterator> cur_matched_ {};
+  decltype(cur_matched_)::iterator cur_matched_it_;
+  decltype(ht_)::iterator map_it_ {ht_.begin()};
+  std::vector<JoinKeyValWraper>::iterator vec_it_{ };
+  Tuple tup_ {};
+  RID id_ { };
 };
 
 }  // namespace bustub

@@ -24,12 +24,6 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
     // Note for 2023 Spring: You ONLY need to implement left join and inner join.
     throw bustub::NotImplementedException(fmt::format("join type {} not supported", plan->GetJoinType()));
   }
-
-//  if (plan->GetJoinType() == JoinType::LEFT) {
-//    DoLeftJoin(left_executor, right_executor);
-//  } else if (plan->GetJoinType() == JoinType::INNER){
-//    DoInnerJoin(left_executor, right_executor);
-//  }
 }
 
 void NestedLoopJoinExecutor::Init() {

@@ -6,9 +6,9 @@
 namespace bustub {
 
 auto Optimizer::Optimize(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef {
+  auto p = plan;
   if (force_starter_rule_) {
     // Use starter rules when `force_starter_rule_` is set to true.
-    auto p = plan;
     p = OptimizeMergeProjection(p);
     p = OptimizeMergeFilterNLJ(p);
     p = OptimizeOrderByAsIndexScan(p);
