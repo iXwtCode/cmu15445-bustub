@@ -18,8 +18,8 @@
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
-#include "storage/table/tuple.h"
 #include "storage/table/table_iterator.h"
+#include "storage/table/tuple.h"
 
 namespace bustub {
 
@@ -62,7 +62,7 @@ class InsertExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   TableInfo *table_info_;
   int num_inserted_{0};
-  bool flag_ {false};
+  bool flag_{false};
 };
 
 }  // namespace bustub

@@ -13,10 +13,10 @@
 #pragma once
 
 #include <memory>
-#include <utility>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
-#include <optional>
+#include <utility>
 
 #include "common/util/hash_util.h"
 #include "execution/executor_context.h"
@@ -24,9 +24,52 @@
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
 #include "type/value_factory.h"
-namespace bustub {
 
-/**
+namespace bustub {
+struct JoinKey {
+  /** The join keys */
+  std::vector<Value> join_keys_;
+
+  /**
+   * Compares two aggregate keys for equality.
+   * @param other the other aggregate key to be compared with
+   * @return `true` if both aggregate keys have equivalent group-by expressions, `false` otherwise
+   */
+  auto operator==(const JoinKey &other) const -> bool {
+    for (uint32_t i = 0; i < other.join_keys_.size(); i++) {
+      if (join_keys_[i].CompareEquals(other.join_keys_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+struct JoinVal {
+  /** The join val */
+  std::vector<Value> col_vals_;
+};
+}
+
+
+namespace std {
+template <>
+struct hash<bustub::JoinKey> {
+  auto operator()(const bustub::JoinKey &join_key) const -> std::size_t {
+    size_t curr_hash = 0;
+    for (const auto &key : join_key.join_keys_) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+}
+
+
+namespace bustub {
+/*
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
  */
 class HashJoinExecutor : public AbstractExecutor {
@@ -56,25 +99,65 @@ class HashJoinExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
+  auto GetJoinKey(Tuple *tup, const std::vector<AbstractExpressionRef> &key_exprs,
+                  const AbstractPlanNodeRef &plan) const -> JoinKey {
+    std::vector<Value> res;
+    auto &schema = plan->OutputSchema();
+    for (const auto &expr : key_exprs) {
+      res.emplace_back(expr->Evaluate(tup, schema));
+    }
+    return {res};
+  }
+
+  /** @return left join key */
+  auto GetLeftJoinKey(Tuple *tup) const -> JoinKey { return GetJoinKey(tup, plan_->left_key_expressions_, plan_->GetLeftPlan()); }
+
+  /** @return right join key */
+  auto GetRightJoinKey(Tuple *tup) const -> JoinKey { return GetJoinKey(tup, plan_->right_key_expressions_, plan_->GetRightPlan()); }
+
+  auto GetJoinValue(Tuple *tup) const -> JoinVal {
+    std::vector<Value> res;
+    auto schema = plan_->GetChildAt(0)->OutputSchema();
+    for (uint32_t i = 0; i < schema.GetColumnCount(); ++i) {
+      res.emplace_back(tup->GetValue(&schema, i));
+    }
+    return {res};
+  }
+
   struct JoinKeyValWraper {
-    JoinKey join_key_;
-    JoinVal join_val_;
-    bool has_visited_ {false};
+    bustub::JoinKey join_key_;
+    bustub::JoinVal join_val_;
+    bool has_visited_{false};
   };
+
   auto TryGetJoinValueByJoinKeyFromht(const JoinKey &join_key)
-              -> std::optional<std::vector<std::vector<JoinKeyValWraper>::iterator>> ;
+      -> std::optional<std::vector<std::vector<JoinKeyValWraper>::iterator>>;
 
   /** The NestedLoopJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
   std::unique_ptr<AbstractExecutor> left_child_;
   std::unique_ptr<AbstractExecutor> right_child_;
-  std::unordered_map<JoinKey, std::vector<JoinKeyValWraper>> ht_ {};
-  std::vector<std::vector<JoinKeyValWraper>::iterator> cur_matched_ {};
+  std::unordered_map<JoinKey, std::vector<JoinKeyValWraper>> ht_{};
+  std::vector<std::vector<JoinKeyValWraper>::iterator> cur_matched_{};
   decltype(cur_matched_)::iterator cur_matched_it_;
-  decltype(ht_)::iterator map_it_ {ht_.begin()};
-  std::vector<JoinKeyValWraper>::iterator vec_it_{ };
-  Tuple tup_ {};
-  RID id_ { };
+  decltype(ht_)::iterator map_it_{ht_.begin()};
+  std::vector<JoinKeyValWraper>::iterator vec_it_{};
+  Tuple tup_{};
+  RID id_{};
 };
 
 }  // namespace bustub
+
+//namespace std {
+//template <>
+//struct hash<bustub::JoinKey> {
+//  auto operator()(const bustub::JoinKey &join_key) const -> std::size_t {
+//    size_t curr_hash = 0;
+//    for (const auto &key : join_key.join_keys_) {
+//      if (!key.IsNull()) {
+//        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+//      }
+//    }
+//    return curr_hash;
+//  }
+//};

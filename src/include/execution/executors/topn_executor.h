@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -23,7 +24,6 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
-
 /**
  * The TopNExecutor executor executes a topn.
  */
@@ -57,11 +57,46 @@ class TopNExecutor : public AbstractExecutor {
 
   /** @return The size of top_entries_ container, which will be called on each child_executor->Next(). */
   auto GetNumInHeap() -> size_t;
-
+  //  static const TopNPlanNode *plan_;
  private:
   /** The TopN plan node to be executed */
   const TopNPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+
+  std::function<bool(Tuple, Tuple)> cmpr_ = [&](const Tuple &lhs, const Tuple &rhs) -> bool {
+    for (const auto &[type, expr] : plan_->order_bys_) {
+      auto left_val = expr->Evaluate(&lhs, plan_->OutputSchema());
+      auto right_val = expr->Evaluate(&rhs, plan_->OutputSchema());
+      if (left_val.CompareEquals(right_val) == CmpBool::CmpFalse) {
+        if (type == OrderByType::ASC || type == OrderByType::DEFAULT) {
+          return left_val.CompareLessThan(right_val) == CmpBool::CmpTrue;
+        }
+        if (type == OrderByType::DESC) {
+          return left_val.CompareGreaterThan(right_val) == CmpBool::CmpTrue;
+        }
+      }
+    }
+    return false;
+  };
+  std::function<bool(Tuple, Tuple)> cmpr1_ = [&](const Tuple &lhs, const Tuple &rhs) -> bool {
+    for (const auto &[type, expr] : plan_->order_bys_) {
+      auto left_val = expr->Evaluate(&lhs, plan_->OutputSchema());
+      auto right_val = expr->Evaluate(&rhs, plan_->OutputSchema());
+      if (left_val.CompareEquals(right_val) == CmpBool::CmpFalse) {
+        if (type == OrderByType::ASC || type == OrderByType::DEFAULT) {
+          return left_val.CompareGreaterThan(right_val) == CmpBool::CmpTrue;
+        }
+        if (type == OrderByType::DESC) {
+          return left_val.CompareLessThan(right_val) == CmpBool::CmpTrue;
+        }
+      }
+    }
+    return true;
+  };
+  std::vector<Tuple> as_heap_;
+  size_t out_cnt_{0};
 };
 }  // namespace bustub
+
+namespace std {}

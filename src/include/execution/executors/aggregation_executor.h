@@ -76,22 +76,35 @@ class SimpleAggregationHashTable {
       auto val = input.aggregates_[i];
       switch (agg_types_[i]) {
         case AggregationType::CountStarAggregate:
-          agg = agg.Add(ValueFactory::GetIntegerValue(1)); break;
+          agg = agg.Add(ValueFactory::GetIntegerValue(1));
+          break;
         case AggregationType::CountAggregate:
-          if (agg.IsNull()) { agg = ValueFactory::GetIntegerValue(1); }
-          else if (!val.IsNull()) { agg = agg.Add(ValueFactory::GetIntegerValue(1)); }
+          if (agg.IsNull() && !val.IsNull()) {
+            agg = ValueFactory::GetIntegerValue(1);
+          } else if (!val.IsNull()) {
+            agg = agg.Add(ValueFactory::GetIntegerValue(1));
+          }
           break;
         case AggregationType::SumAggregate:
-          if (agg.IsNull()) { agg = val; }
-          else if (!val.IsNull()) { agg = agg.Add(val); }
+          if (agg.IsNull()) {
+            agg = val;
+          } else if (!val.IsNull()) {
+            agg = agg.Add(val);
+          }
           break;
         case AggregationType::MinAggregate:
-          if (agg.IsNull()) { agg = val; }
-          else if (!val.IsNull()) { agg = agg.Min(val); }
+          if (agg.IsNull()) {
+            agg = val;
+          } else if (!val.IsNull()) {
+            agg = agg.Min(val);
+          }
           break;
         case AggregationType::MaxAggregate:
-          if (agg.IsNull()) { agg = val; }
-          else if (!val.IsNull()) { agg = agg.Max(val); }
+          if (agg.IsNull()) {
+            agg = val;
+          } else if (!val.IsNull()) {
+            agg = agg.Max(val);
+          }
           break;
       }
     }
@@ -149,6 +162,7 @@ class SimpleAggregationHashTable {
   /** @return Iterator to the end of the hash table */
   auto End() -> Iterator { return Iterator{ht_.cend()}; }
   auto IsEmpty() const -> bool { return ht_.empty(); }
+
  private:
   /** The hash table is just a map from aggregate keys to aggregate values */
   std::unordered_map<AggregateKey, AggregateValue> ht_{};
@@ -230,6 +244,6 @@ class AggregationExecutor : public AbstractExecutor {
   /** Simple aggregation hash table iterator */
   SimpleAggregationHashTable::Iterator aht_iterator_;
 
-  bool terminated_ {false};
+  bool terminated_{false};
 };
 }  // namespace bustub

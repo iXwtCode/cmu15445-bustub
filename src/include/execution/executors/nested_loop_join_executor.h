@@ -58,9 +58,9 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   const NestedLoopJoinPlanNode *plan_;
   std::unique_ptr<AbstractExecutor> left_ex_;
   std::unique_ptr<AbstractExecutor> right_ex_;
-  bool outer_status_ {false};
-  bool inner_status_ {false};
-  bool has_any_item_ {true};
+  bool outer_status_{false};
+  bool inner_status_{false};
+  bool has_any_item_{true};
   Tuple left_tup_;
   Tuple right_tup_;
   RID left_rid_;

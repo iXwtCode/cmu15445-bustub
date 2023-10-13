@@ -18,20 +18,21 @@ namespace bustub {
 
 AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const AggregationPlanNode *plan,
                                          std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor))
-      , aht_(plan_->GetAggregates(), plan_->GetAggregateTypes())
-      , aht_iterator_(aht_.Begin()) {
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      child_executor_(std::move(child_executor)),
+      aht_(plan_->GetAggregates(), plan_->GetAggregateTypes()),
+      aht_iterator_(aht_.Begin()) {
   Tuple tup;
   RID rid;
   child_executor_->Init();
-  AggregateKey agg_key { {ValueFactory::GetIntegerValue(0)} };
-  AggregateValue agg_val { {ValueFactory::GetIntegerValue(0)} };
+  AggregateKey agg_key{{ValueFactory::GetIntegerValue(0)}};
+  AggregateValue agg_val{{ValueFactory::GetIntegerValue(0)}};
   while (child_executor_->Next(&tup, &rid)) {
     agg_key = MakeAggregateKey(&tup);
     agg_val = MakeAggregateValue(&tup);
     aht_.InsertCombine(agg_key, agg_val);
   }
-
 }
 
 void AggregationExecutor::Init() {
@@ -52,10 +53,10 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     key = MakeAggregateNullKey();
     val = aht_.GenerateInitialAggregateValue();
     out_vec.reserve(key.group_bys_.size() + val.aggregates_.size());
-    for (const auto& out : key.group_bys_) {
+    for (const auto &out : key.group_bys_) {
       out_vec.emplace_back(out);
     }
-    for (const auto& out : val.aggregates_) {
+    for (const auto &out : val.aggregates_) {
       out_vec.emplace_back(out);
     }
     terminated_ = true;
@@ -65,7 +66,7 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   }
 
   if (aht_iterator_ != aht_.End()) {
-//    std::cout << "not empty!\n";
+    //    std::cout << "not empty!\n";
     key = aht_iterator_.Key();
     val = aht_iterator_.Val();
     ++aht_iterator_;
@@ -73,10 +74,10 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     // 构建输出 tuple
     std::vector<Value> out_vec;
     out_vec.reserve(key.group_bys_.size() + val.aggregates_.size());
-    for (const auto& out : key.group_bys_) {
+    for (const auto &out : key.group_bys_) {
       out_vec.emplace_back(out);
     }
-    for (const auto& out : val.aggregates_) {
+    for (const auto &out : val.aggregates_) {
       out_vec.emplace_back(out);
     }
 

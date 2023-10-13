@@ -18,8 +18,10 @@ namespace bustub {
 
 DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor))
-      ,table_info_(exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_)) {}
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      child_executor_(std::move(child_executor)),
+      table_info_(exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_)) {}
 
 void DeleteExecutor::Init() {
   Tuple tup;
@@ -31,17 +33,15 @@ void DeleteExecutor::Init() {
   delete_cnt_ = 0;
   while (child_executor_->Next(&tup, &rid)) {
     // 从 table 中删除 tuple
-    TupleMeta meta {INVALID_TXN_ID, INVALID_TXN_ID, true};
+    TupleMeta meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
     table_info_->table_->UpdateTupleMeta(meta, rid);
     delete_cnt_ += 1;
 
     // 删除对应索引
-    for(auto index : table_indexes) {
+    for (auto index : table_indexes) {
       index->index_->DeleteEntry(
-          tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()),
-          tup.GetRid(),
-          exec_ctx_->GetTransaction()
-      );
+          tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()), tup.GetRid(),
+          exec_ctx_->GetTransaction());
     }
   }
 }

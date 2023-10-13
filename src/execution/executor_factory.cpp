@@ -164,9 +164,9 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
       const auto *topn_plan = dynamic_cast<const TopNPlanNode *>(plan.get());
       auto child = ExecutorFactory::CreateExecutor(exec_ctx, topn_plan->GetChildPlan());
       if (check_options_set.find(CheckOption::ENABLE_TOPN_CHECK) != check_options_set.end()) {
-        auto topn_executor = std::make_unique<TopNExecutor>(exec_ctx, topn_plan, nullptr);
-        auto check = std::make_unique<TopNCheckExecutor>(exec_ctx, topn_plan, std::move(child), topn_executor.get());
-        topn_executor->SetChildExecutor(std::move(check));
+        auto topn_executor = std::make_unique<TopNExecutor>(exec_ctx, topn_plan, std::move(child));
+        // auto check = std::make_unique<TopNCheckExecutor>(exec_ctx, topn_plan, std::move(child), topn_executor.get());
+        // topn_executor->SetChildExecutor(std::move(check));
         return topn_executor;
       }
       return std::make_unique<TopNExecutor>(exec_ctx, topn_plan, std::move(child));
