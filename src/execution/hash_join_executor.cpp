@@ -67,7 +67,8 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       (*cur_matched_it_)->has_visited_ = true;
       auto left_join_val = (*cur_matched_it_)->join_val_;
       std::vector<Value> out_vec;
-      for (auto val : left_join_val.col_vals_) {
+      out_vec.reserve(left_join_val.col_vals_.size());
+      for (const auto &val : left_join_val.col_vals_) {
         out_vec.emplace_back(val);
       }
       for (uint32_t i = 0; i < right_schema.GetColumnCount(); ++i) {
@@ -82,12 +83,10 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
   if (!right_child_->Next(&tup_, &id_) && plan_->GetJoinType() == JoinType::LEFT) {
     while (true) {
-      //      std::cout << "enter left\n";
       if (map_it_ == ht_.end()) {
         break;
       }
       if (vec_it_ == map_it_->second.end()) {
-        std::cout << "next map_it_\n";
         if (++map_it_ == ht_.end()) {
           break;
         }
@@ -95,11 +94,10 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       }
       while (vec_it_ != map_it_->second.end()) {
         if (!vec_it_->has_visited_) {
-          std::cout << "unvisited\n";
           auto left_join_val = vec_it_->join_val_;
           std::vector<Value> out_vec;
           // 构建输出 tuple
-          for (auto val : left_join_val.col_vals_) {
+          for (const auto &val : left_join_val.col_vals_) {
             out_vec.emplace_back(val);
           }
           for (uint32_t i = 0; i < right_schema.GetColumnCount(); ++i) {
@@ -123,7 +121,6 @@ auto HashJoinExecutor::TryGetJoinValueByJoinKeyFromht(const JoinKey &join_key)
   using ret_type = std::vector<std::vector<JoinKeyValWraper>::iterator>;
   ret_type res;
   if (ht_.count(join_key) != 0) {
-    //    std::cout << "has join key\n";
     auto &l = ht_[join_key];
     for (auto it = l.begin(); it != l.end(); ++it) {
       if (it->join_key_ == join_key) {

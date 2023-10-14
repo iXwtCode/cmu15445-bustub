@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "common/util/hash_util.h"
 #include "execution/executor_context.h"
@@ -49,8 +50,7 @@ struct JoinVal {
   /** The join val */
   std::vector<Value> col_vals_;
 };
-}
-
+}  // namespace bustub
 
 namespace std {
 template <>
@@ -65,8 +65,7 @@ struct hash<bustub::JoinKey> {
     return curr_hash;
   }
 };
-}
-
+}  // namespace std
 
 namespace bustub {
 /*
@@ -110,10 +109,14 @@ class HashJoinExecutor : public AbstractExecutor {
   }
 
   /** @return left join key */
-  auto GetLeftJoinKey(Tuple *tup) const -> JoinKey { return GetJoinKey(tup, plan_->left_key_expressions_, plan_->GetLeftPlan()); }
+  auto GetLeftJoinKey(Tuple *tup) const -> JoinKey {
+    return GetJoinKey(tup, plan_->left_key_expressions_, plan_->GetLeftPlan());
+  }
 
   /** @return right join key */
-  auto GetRightJoinKey(Tuple *tup) const -> JoinKey { return GetJoinKey(tup, plan_->right_key_expressions_, plan_->GetRightPlan()); }
+  auto GetRightJoinKey(Tuple *tup) const -> JoinKey {
+    return GetJoinKey(tup, plan_->right_key_expressions_, plan_->GetRightPlan());
+  }
 
   auto GetJoinValue(Tuple *tup) const -> JoinVal {
     std::vector<Value> res;
@@ -147,17 +150,3 @@ class HashJoinExecutor : public AbstractExecutor {
 };
 
 }  // namespace bustub
-
-//namespace std {
-//template <>
-//struct hash<bustub::JoinKey> {
-//  auto operator()(const bustub::JoinKey &join_key) const -> std::size_t {
-//    size_t curr_hash = 0;
-//    for (const auto &key : join_key.join_keys_) {
-//      if (!key.IsNull()) {
-//        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
-//      }
-//    }
-//    return curr_hash;
-//  }
-//};

@@ -21,7 +21,6 @@
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
 
-
 namespace bustub {
 /**
  * Hash join performs a JOIN operation with a hash table.
@@ -67,8 +66,6 @@ class HashJoinPlanNode : public AbstractPlanNode {
   /** @return The join type used in the hash join */
   auto GetJoinType() const -> JoinType { return join_type_; };
 
-
-
   BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(HashJoinPlanNode);
 
   /** The expression to compute the left JOIN key */
@@ -80,9 +77,7 @@ class HashJoinPlanNode : public AbstractPlanNode {
   JoinType join_type_;
 
  private:
-
  protected:
   auto PlanNodeToString() const -> std::string override;
 };
 }  // namespace bustub
-

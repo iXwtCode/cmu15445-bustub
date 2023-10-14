@@ -205,8 +205,10 @@ class BufferPoolManager {
    */
   void DeallocatePage(__attribute__((unused)) page_id_t page_id) {
     // This is a no-nop right now without a more complex data structure to track deallocated pages
+    id_can_reuse_.emplace_back(page_id);
   }
 
   // TODO(student): You may add additional private members and helper functions
+  std::list<page_id_t> id_can_reuse_;
 };
 }  // namespace bustub

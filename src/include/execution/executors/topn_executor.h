@@ -94,7 +94,7 @@ class TopNExecutor : public AbstractExecutor {
     }
     return true;
   };
-  std::vector<Tuple> as_heap_;
+  std::vector<Tuple> as_heap_{};
   size_t out_cnt_{0};
 };
 }  // namespace bustub

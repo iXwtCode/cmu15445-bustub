@@ -16,8 +16,8 @@
 #include "type/type_id.h"
 
 namespace bustub {
-void getExpression(std::vector<AbstractExpressionRef> &left_expr, std::vector<AbstractExpressionRef> &right_expr,
-                   AbstractExpressionRef expr) {
+void GetExpression(std::vector<AbstractExpressionRef> &left_expr, std::vector<AbstractExpressionRef> &right_expr,
+                   const AbstractExpressionRef &expr) {
   auto ex = dynamic_cast<ComparisonExpression *>(expr.get());
   if (ex != nullptr) {
     for (const auto &e : ex->GetChildren()) {
@@ -30,7 +30,7 @@ void getExpression(std::vector<AbstractExpressionRef> &left_expr, std::vector<Ab
     }
   } else {
     for (const auto &child : expr->GetChildren()) {
-      getExpression(left_expr, right_expr, child);
+      GetExpression(left_expr, right_expr, child);
     }
   }
 }
@@ -53,7 +53,7 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
     auto right_schema = right_plan->OutputSchema();
     std::vector<AbstractExpressionRef> left_expr;
     std::vector<AbstractExpressionRef> right_expr;
-    getExpression(left_expr, right_expr, nlj_plan.predicate_);
+    GetExpression(left_expr, right_expr, nlj_plan.predicate_);
 
     auto schema = std::make_shared<Schema>(nlj_plan.OutputSchema());
     auto opti_plan = HashJoinPlanNode(schema, nlj_plan.GetChildAt(0), nlj_plan.GetChildAt(1), left_expr, right_expr,

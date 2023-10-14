@@ -48,7 +48,7 @@ void UpdateExecutor::Init() {
 
     // 新 tuple 插入 table
     TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
-    table_info_->table_->InsertTuple(new_meta, insert_tup);
+    auto new_rid = table_info_->table_->InsertTuple(new_meta, insert_tup);
 
     // 从索引中删除旧值，插入新值
     for (auto index : table_indexes) {
@@ -57,7 +57,7 @@ void UpdateExecutor::Init() {
           exec_ctx_->GetTransaction());
       index->index_->InsertEntry(
           insert_tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()),
-          insert_tup.GetRid(), exec_ctx_->GetTransaction());
+          new_rid.value(), exec_ctx_->GetTransaction());
     }
   }
 }
