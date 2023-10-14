@@ -97,6 +97,7 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
           auto left_join_val = vec_it_->join_val_;
           std::vector<Value> out_vec;
           // 构建输出 tuple
+          out_vec.reserve(left_join_val.col_vals_.size());
           for (const auto &val : left_join_val.col_vals_) {
             out_vec.emplace_back(val);
           }

@@ -101,6 +101,7 @@ class HashJoinExecutor : public AbstractExecutor {
   auto GetJoinKey(Tuple *tup, const std::vector<AbstractExpressionRef> &key_exprs,
                   const AbstractPlanNodeRef &plan) const -> JoinKey {
     std::vector<Value> res;
+    res.reserve(key_exprs.size());
     auto &schema = plan->OutputSchema();
     for (const auto &expr : key_exprs) {
       res.emplace_back(expr->Evaluate(tup, schema));
