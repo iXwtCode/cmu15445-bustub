@@ -378,7 +378,9 @@ class Transaction {
   /** Concurrent index: the page IDs that were deleted during index operation.*/
   std::shared_ptr<std::unordered_set<page_id_t>> deleted_page_set_;
 
-  /** LockManager: the set of table locks held by this transaction. */
+  /** LockManager: the set of table locks held by this transaction. *
+   *
+   */
   std::shared_ptr<std::unordered_set<table_oid_t>> s_table_lock_set_;
   std::shared_ptr<std::unordered_set<table_oid_t>> x_table_lock_set_;
   std::shared_ptr<std::unordered_set<table_oid_t>> is_table_lock_set_;

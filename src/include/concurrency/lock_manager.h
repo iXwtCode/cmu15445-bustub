@@ -21,6 +21,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <set>
+#include <map>
 
 #include "common/config.h"
 #include "common/macros.h"
@@ -74,10 +76,8 @@ class LockManager {
     std::mutex latch_;
     void Remove(Transaction *txn) {
       for (auto it = request_queue_.begin(); it != request_queue_.end(); ++it) {
-        if ((*it)->txn_id_ == txn->GetTransactionId()) {
-          request_queue_.erase(it);
-          break;
-        }
+        request_queue_.erase(it);
+        break;
       }
     }
   };
@@ -327,9 +327,11 @@ class LockManager {
  private:
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
-  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, LockMode old_lock_mode, const table_oid_t &oid) -> bool;
-  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, LockMode old_lock_mode
-                      ,const table_oid_t &oid, const RID &rid) -> bool;
+  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode
+                        , LockMode old_lock_mode, const table_oid_t &oid) -> bool;
+  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode
+                      , LockMode old_lock_mode, const table_oid_t &oid
+                      , const RID &rid) -> bool;
   auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool;
   void CheckCanTxnTakeLock(Transaction *txn, LockMode lock_mode);
   void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
@@ -338,11 +340,10 @@ class LockManager {
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
                  std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
 
-  auto GetTableLockSet(Transaction *txn, LockMode lock_mode)
-      -> std::shared_ptr<std::unordered_set<table_oid_t>>;
+  auto GetTableLockSet(Transaction *txn, LockMode lock_mode) -> std::shared_ptr<std::unordered_set<table_oid_t>>;
   auto GetRowLockSet(Transaction *txn, LockMode lock_mode)
       -> std::shared_ptr<std::unordered_map<table_oid_t, std::unordered_set<RID>>>;
-  void AddToLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid) ;
+  void AddToLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid);
   void AddToLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid, const RID &rid);
   void RemoveFromLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid);
   void RemoveFromLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid);
@@ -350,6 +351,8 @@ class LockManager {
   auto TryGetLockMode(Transaction *txn, const table_oid_t &oid, const RID &rid) -> std::optional<LockMode>;
   auto CanGrantLock(std::shared_ptr<LockRequestQueue> que, LockMode lock_mode) -> bool;
   void UnlockAll();
+
+  void BuildWaitForGraph();
 
   /** Structure that holds lock requests for a given table oid */
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;
@@ -364,7 +367,7 @@ class LockManager {
   std::atomic<bool> enable_cycle_detection_;
   std::thread *cycle_detection_thread_;
   /** Waits-for graph representation. */
-  std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  std::map<txn_id_t, std::set<txn_id_t>> waits_for_;
   std::mutex waits_for_latch_;
 };
 
