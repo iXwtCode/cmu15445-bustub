@@ -56,11 +56,13 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     try {
       if (exec_ctx_->IsDelete()) {
         if (!lock_manager->LockRow(txn, LockManager::LockMode::EXCLUSIVE, table_oid, id)) {
+          std::cout << "seq_scan_executor: LockRow return false!" << std::endl;
           throw ExecutionException("seq_scan_executor: LockRow return false!\n");
         }
       } else if (txn->GetIsolationLevel() != IsolationLevel::READ_UNCOMMITTED
                  && !txn->IsRowExclusiveLocked(table_oid, id)) {
         if(!lock_manager->LockRow(txn, LockManager::LockMode::SHARED, table_oid, id)) {
+          std::cout << "seq_scan_executor: LockRow return false!" << std::endl;
           throw ExecutionException("seq_scan_executor: LockRow return false!\n");
         }
       }
