@@ -21,6 +21,7 @@
 #include "storage/table/table_heap.h"
 #include "storage/table/table_iterator.h"
 #include "storage/table/tuple.h"
+#include "concurrency/lock_manager.h"
 
 namespace bustub {
 
@@ -54,5 +55,6 @@ class SeqScanExecutor : public AbstractExecutor {
   /** The sequential scan plan node to be executed */
   const SeqScanPlanNode *plan_;
   std::unique_ptr<TableIterator> p_iterator_;
+  bool finished_ {false};
 };
 }  // namespace bustub

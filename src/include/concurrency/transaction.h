@@ -73,7 +73,8 @@ using index_oid_t = uint32_t;
 class TableWriteRecord {
  public:
   // NOLINTNEXTLINE
-  TableWriteRecord(table_oid_t tid, RID rid, TableHeap *table_heap) : tid_(tid), rid_(rid), table_heap_(table_heap) {}
+  TableWriteRecord(table_oid_t tid, RID rid, TableHeap *table_heap, WType type)
+      : tid_(tid), rid_(rid), table_heap_(table_heap) {}
 
   table_oid_t tid_;
   RID rid_;

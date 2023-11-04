@@ -54,7 +54,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   auto new_request = std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
   request_que->request_queue_.push_back(new_request);
   std::unique_lock<std::mutex> lock(request_que->latch_, std::adopt_lock);
-  while (!CanGrantLock(request_que, lock_mode)) {
+  while (!CanGrantLock(request_que, new_request)) {
     request_que->cv_.wait(lock);
     if (txn->GetState() == TransactionState::ABORTED) {
       request_que->request_queue_.remove(new_request);
@@ -141,11 +141,11 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
       throw TransactionAbortException(txn->GetTransactionId(), AbortReason::TABLE_LOCK_NOT_PRESENT);
     }
   } else {  // 父节点没有锁
-    if (lock_mode == LockMode::EXCLUSIVE) {
-      LockTable(txn, LockMode::INTENTION_EXCLUSIVE, oid);
-    } else {
-      LockTable(txn, LockMode::INTENTION_SHARED, oid);
-    }
+//    if (lock_mode == LockMode::EXCLUSIVE) {
+//      LockTable(txn, LockMode::INTENTION_EXCLUSIVE, oid);
+//    } else {
+//      LockTable(txn, LockMode::INTENTION_SHARED, oid);
+//    }
   }
 
   auto try_lock_mod = TryGetLockMode(txn, oid, rid);
@@ -173,7 +173,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   auto new_request = std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
   request_que->request_queue_.push_back(new_request);
   std::unique_lock<std::mutex> lock(request_que->latch_, std::adopt_lock);
-  while (!CanGrantLock(request_que, lock_mode)) {
+  while (!CanGrantLock(request_que, new_request)) {
     request_que->cv_.wait(lock);
     if (txn->GetState() == TransactionState::ABORTED) {
       request_que->request_queue_.remove(new_request);
@@ -196,8 +196,14 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   request_que->latch_.lock();
   row_lock_map_latch_.unlock();
 
-  // 检查txn是否持有行锁，若没有抛出异常
   auto lock_mode = TryGetLockMode(txn, oid, rid);
+  if (force) {
+    RemoveFromLockSet(txn, lock_mode.value(), oid, rid);
+    request_que->cv_.notify_all();
+    request_que->latch_.unlock();  //  临界区结束。保证请求队列和lockset的更新同步
+    return true;
+  }
+
   if (!lock_mode.has_value()) {
     txn->SetState(TransactionState::ABORTED);
     request_que->latch_.unlock();
@@ -235,19 +241,19 @@ void LockManager::UnlockAll() {
 }
 
 void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
+  tid_set_.insert(t1);
+  tid_set_.insert(t2);
   waits_for_[t1].insert(t2);
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
-  waits_for_[t1].erase(t2);
+  auto iter = std::find(waits_for_[t1].begin(), waits_for_[t1].end(), t2);
+  if (iter != waits_for_[t1].end()) {
+    waits_for_[t1].erase(t2);
+  }
 }
 
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
-//  std::set<txn_id_t> ordered_tid;
-//  for (const auto &[tid, _] : txn_manager_->txn_map_) {
-//    ordered_tid.insert(tid);
-//  }
-
   std::unordered_set<txn_id_t> visited;
   for (const auto &[tid, _] : waits_for_) {
     std::vector<txn_id_t> path;
@@ -272,26 +278,37 @@ auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
 void LockManager::RunCycleDetection() {
   while (enable_cycle_detection_) {
     std::this_thread::sleep_for(cycle_detection_interval);
-    {  // TODO(students): detect deadlock
-      printf("start cycle detect!!\n");
+    {
+      table_lock_map_latch_.lock();
+      row_lock_map_latch_.lock();
       BuildWaitForGraph();
-      txn_id_t tid;
+      row_lock_map_latch_.unlock();
+      table_lock_map_latch_.unlock();
+      txn_id_t tid { };
       while (HasCycle(&tid)) {
         txn_manager_->txn_map_[tid]->SetState(TransactionState::ABORTED);
+        DeleteNode(tid);
+        if (tid_oid_map_.count(tid) > 0) {
+          table_lock_map_[tid_oid_map_[tid]]->latch_.lock();
+          table_lock_map_[tid_oid_map_[tid]]->cv_.notify_all();
+          table_lock_map_[tid_oid_map_[tid]]->latch_.unlock();
+        }
+
+        if (tid_rid_map_.count(tid) > 0) {
+          row_lock_map_[tid_rid_map_[tid]]->latch_.lock();
+          row_lock_map_[tid_rid_map_[tid]]->cv_.notify_all();
+          row_lock_map_[tid_rid_map_[tid]]->latch_.unlock();
+        }
       }
-      for (auto &[_, que] : row_lock_map_) {
-        que->cv_.notify_all();
-      }
-      for (auto &[_, que] : table_lock_map_) {
-        que->cv_.notify_all();
-      }
+      waits_for_.clear();
+      tid_set_.clear();
+      tid_oid_map_.clear();
+      tid_rid_map_.clear();
     }
-    waits_for_.clear();
   }
 }
 
-auto LockManager::UpgradeLockTable(Transaction *txn
-                                   , LockManager::LockMode lock_mode, LockMode old_lock_mode,
+auto LockManager::UpgradeLockTable(Transaction *txn, LockManager::LockMode lock_mode, LockMode old_lock_mode,
                                    const table_oid_t &oid) -> bool {
   auto request_que = table_lock_map_[oid];     // 获取请求队列
   request_que->Remove(txn);                    // 从请队列中删除旧请求
@@ -307,9 +324,10 @@ auto LockManager::UpgradeLockTable(Transaction *txn
   request_que->request_queue_.insert(it, upgraded_request);  // 新请求插入队列
   request_que->upgrading_ = txn->GetTransactionId();
   std::unique_lock<std::mutex> lock(request_que->latch_, std::adopt_lock);
-  while (!CanGrantLock(request_que, lock_mode)) {
+  while (!CanGrantLock(request_que, upgraded_request)) {
     request_que->cv_.wait(lock);
     if (txn->GetState() == TransactionState::ABORTED) {
+      request_que->upgrading_ = INVALID_TXN_ID;
       request_que->request_queue_.remove(upgraded_request);
       request_que->cv_.notify_all();
       return false;
@@ -326,8 +344,7 @@ auto LockManager::UpgradeLockTable(Transaction *txn
   return true;
 }
 
-auto LockManager::UpgradeLockRow(Transaction *txn, LockManager::LockMode lock_mode
-                                 ,LockMode old_lock_mode,
+auto LockManager::UpgradeLockRow(Transaction *txn, LockManager::LockMode lock_mode, LockMode old_lock_mode,
                                  const table_oid_t &oid, const RID &rid) -> bool {
   auto request_que = row_lock_map_[rid];            // 获取请求队列
   request_que->Remove(txn);                         // 从请队列中删除旧请求
@@ -342,7 +359,7 @@ auto LockManager::UpgradeLockRow(Transaction *txn, LockManager::LockMode lock_mo
   request_que->request_queue_.insert(it, upgraded_request);  // 新请求插入队列
   request_que->upgrading_ = txn->GetTransactionId();
   std::unique_lock<std::mutex> lock(request_que->latch_, std::adopt_lock);
-  while (!CanGrantLock(request_que, lock_mode)) {
+  while (!CanGrantLock(request_que, upgraded_request)) {
     request_que->cv_.wait(lock);
     if (txn->GetState() == TransactionState::ABORTED) {
       request_que->request_queue_.remove(upgraded_request);
@@ -496,105 +513,96 @@ auto LockManager::CheckAppropriateLockOnTable(Transaction *txn, const table_oid_
   return true;
 }
 
-auto LockManager::CanGrantLock(std::shared_ptr<LockRequestQueue> que, LockMode lock_mode) -> bool {
-  for (const auto& quest : que->request_queue_) {
-    if (quest->granted_ && !AreLocksCompatible(quest->lock_mode_, lock_mode)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-auto LockManager::FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
-               std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool {
-//  printf("source_txn: %d\n", source_txn);
-  if (on_path.find(source_txn) != on_path.end()) { // 找到一个环
-    txn_id_t abort_tid = -1;
-//    printf("path size: %zu\n", path.size());
-//    std::cout << path[0] << path[1] << std::endl;
-    for (auto it = path.rbegin(); it != path.rend() && *it != source_txn; ++it) {
-//      printf("%d \n", *it);
-      abort_tid = std::max(abort_tid, *it);
-    }
-    abort_tid = std::max(abort_tid, source_txn);
-    *abort_txn_id = abort_tid;
-//    printf("source_txn: %d\n", source_txn);
-//    printf("*aborted_tx_id_: %d\n", abort_tid);
+auto LockManager::CanGrantLock(const std::shared_ptr<LockRequestQueue>& que
+                               , std::shared_ptr<LockRequest> lock_request) -> bool {
+  if (que->request_queue_.empty()) {
     return true;
   }
-  if (visited.find(source_txn) != visited.end()) { return false; }
-
-  path.push_back(source_txn);
-  on_path.insert(source_txn);
-  visited.insert(source_txn);
-  for (auto tid : waits_for_[source_txn]) {
-    auto txn = txn_manager_->txn_map_[tid];
-    if (txn->GetState() != TransactionState::ABORTED) {
-//      printf("revrsion\n");
-      if (FindCycle(tid, path, on_path, visited, abort_txn_id)) {
-        return true;
+  for (const auto &quest : que->request_queue_) {
+    if (quest->granted_) {
+      if (!AreLocksCompatible(quest->lock_mode_, lock_request->lock_mode_)) {
+        return false;
       }
-      path.pop_back();
-      on_path.erase(source_txn);
+    } else if (quest.get() != lock_request.get()){
+      return false;
+    } else {
+      return true;
     }
   }
   return false;
 }
 
-void LockManager::BuildWaitForGraph() {
-//  printf("table_lock_map_ size: %zu\n", table_lock_map_.size());
-//  printf("row_lock_map_ size: %zu\n", row_lock_map_.size());
-  for (auto &[_, request_que] : table_lock_map_) {
-    std::vector<std::shared_ptr<LockRequest>> granted_requests;
-    std::vector<std::shared_ptr<LockRequest>> ungranted_requests;
-    for (const auto& request : request_que->request_queue_) {
-      auto txn = txn_manager_->txn_map_[request->txn_id_];
-      if (txn->GetState() != TransactionState::ABORTED) {
-        if (request->granted_) {
-          granted_requests.push_back(request);
-//          printf("add to table granted_reqeusts\n");
-        } else {
-          ungranted_requests.push_back(request);
-//          printf("add to table ungranted_reqeusts\n");
-        }
-      }
+auto LockManager::FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
+                            std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool {
+  if (on_path.find(source_txn) != on_path.end()) {  // 找到一个环
+    txn_id_t abort_tid = -1;
+    for (auto it = path.rbegin(); it != path.rend() && *it != source_txn; ++it) {
+      abort_tid = std::max(abort_tid, *it);
     }
-
-    for (const auto& ungranted_request : ungranted_requests) {
-      for (const auto& granted_request : granted_requests) {
-        if (!AreLocksCompatible(granted_request->lock_mode_, ungranted_request->lock_mode_)) {
-          printf("Add edge: %d -> %d", ungranted_request->txn_id_, granted_request->txn_id_);
-//          AddEdge(ungranted_request->txn_id_, granted_request->txn_id_);
-        }
-      }
-    }
+    abort_tid = std::max(abort_tid, source_txn);
+    *abort_txn_id = abort_tid;
+    return true;
+  }
+  if (visited.find(source_txn) != visited.end()) {
+    return false;
   }
 
-  for (auto &[_, request_que] : row_lock_map_) {
-    std::vector<std::shared_ptr<LockRequest>> granted_requests;
-    std::vector<std::shared_ptr<LockRequest>> ungranted_requests;
-    for (const auto& request : request_que->request_queue_) {
-      auto txn = txn_manager_->txn_map_[request->txn_id_];
-      if (txn->GetState() != TransactionState::ABORTED) {
-        if (request->granted_) {
-          granted_requests.push_back(request);
-//          printf("add to table granted_reqeusts\n");
-        } else {
-          ungranted_requests.push_back(request);
-//          printf("add to table ungranted_reqeusts\n");
-        }
-      }
+  path.push_back(source_txn);
+  on_path.insert(source_txn);
+  visited.insert(source_txn);
+  for (auto tid : waits_for_[source_txn]) {
+    if (FindCycle(tid, path, on_path, visited, abort_txn_id)) {
+      return true;
     }
+    path.pop_back();
+    on_path.erase(source_txn);
+  }
+  return false;
+}
 
-    for (const auto& ungranted_request : ungranted_requests) {
-      for (const auto& granted_request : granted_requests) {
-        if (!AreLocksCompatible(granted_request->lock_mode_, ungranted_request->lock_mode_)) {
-          AddEdge(ungranted_request->txn_id_, granted_request->txn_id_);
-//          printf("Add edge: %d -> %d\n", ungranted_request->txn_id_, granted_request->txn_id_);
+void LockManager::BuildWaitForGraph() {
+  //  printf("table_lock_map_ size: %zu\n", table_lock_map_.size());
+  //  printf("row_lock_map_ size: %zu\n", row_lock_map_.size());
+  std::vector<txn_id_t> granted_tids;
+  for (auto &[oid, request_que] : table_lock_map_) {
+    request_que->latch_.lock();
+    for (const auto &request : request_que->request_queue_) {
+      if (request->granted_) {
+        granted_tids.push_back(request->txn_id_);
+      } else {
+        for (auto tid : granted_tids) {
+          tid_oid_map_.emplace(tid, oid);
+          AddEdge(tid, request->txn_id_);
         }
       }
     }
+    request_que->latch_.unlock();
+  }
+
+  granted_tids.clear();
+  for (auto &[rid, request_que] : row_lock_map_) {
+    request_que->latch_.lock();
+    for (const auto &request : request_que->request_queue_) {
+      if (request->granted_) {
+        granted_tids.push_back(request->txn_id_);
+      } else {
+        for (auto tid : granted_tids) {
+          tid_rid_map_.emplace(tid, rid);
+          AddEdge(tid, request->txn_id_);
+        }
+      }
+    }
+    request_que->latch_.unlock();
   }
 }
 
+auto LockManager::DeleteNode(txn_id_t txn_id) -> void {
+  waits_for_.erase(txn_id);
+
+  for (auto a_txn_id : tid_set_) {
+    if (a_txn_id != txn_id) {
+      RemoveEdge(a_txn_id, txn_id);
+    }
+  }
+}
 }  // namespace bustub

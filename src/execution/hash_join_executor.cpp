@@ -31,7 +31,7 @@ HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlan
     auto join_val = GetJoinValue(&tup_);
     ht_[join_key].emplace_back(JoinKeyValWraper{join_key, join_val, false});
   }
-  std::cout << ht_.size() << "\n";
+//  std::cout << ht_.size() << "\n";
 }
 
 void HashJoinExecutor::Init() {
