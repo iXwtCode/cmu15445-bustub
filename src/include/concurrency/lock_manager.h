@@ -370,7 +370,7 @@ class LockManager {
   std::unordered_map<txn_id_t, table_oid_t> tid_oid_map_;
   std::unordered_map<txn_id_t, RID> tid_rid_map_;
   std::set<txn_id_t> tid_set_;
-
+  std::unordered_set<txn_id_t> aborted_txn_set_;
 };
 
 }  // namespace bustub

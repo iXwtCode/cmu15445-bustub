@@ -63,7 +63,9 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // 更新 index
     if (rid_insert.has_value()) {
       num_inserted_ += 1;
-      txn->AppendTableWriteRecord(TableWriteRecord {table_info_->oid_, id, table_info_->table_.get(), WType::INSERT});
+      TableWriteRecord record{table_info_->oid_, id, table_info_->table_.get()};
+      record.wtype_ = WType::INSERT;
+      txn->AppendTableWriteRecord(record);
       for (auto index : table_indexes) {
         index->index_->InsertEntry(
             tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()),

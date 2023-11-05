@@ -22,23 +22,20 @@ void SeqScanExecutor::Init() {
   auto lock_manager = exec_ctx_->GetLockManager();
   auto table_oid = plan_->table_oid_;
   finished_ = false;
-  std::cout << "seq init" << std::endl;
+  LOG_DEBUG("seq init");
   try {
     if (exec_ctx_->IsDelete()) {
-      std::cout << "IX table lock!" << std::endl;
-      if(!lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, table_oid)) {
-        throw ExecutionException("seq_scan_executor: LockTable return false!\n");
-      }
+      LOG_DEBUG("IX table lock!");
+      BUSTUB_ENSURE(lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, table_oid)
+                        , "seq_scan_executor: LockTable failed!");
     } else if (txn->GetIsolationLevel() != IsolationLevel::READ_UNCOMMITTED
                && !txn->IsTableIntentionExclusiveLocked(table_oid)) {
-      std::cout << "IS table lock!" << std::endl;
-      if (!lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_SHARED, table_oid)) {
-        throw ExecutionException("seq_scan_executor: LockTable return false!\n");
-      }
+      LOG_DEBUG("IX table lock!");
+      BUSTUB_ENSURE(lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_SHARED, table_oid)
+                        , "seq_scan_executor: LockTable failed!");
     }
 
   } catch (TransactionAbortException &e) {
-    std::cout << "seq init" << std::endl;
     throw ExecutionException("seq_scan lock error \n" + e.GetInfo());
   }
 
@@ -56,25 +53,28 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     try {
       if (exec_ctx_->IsDelete()) {
         if (!lock_manager->LockRow(txn, LockManager::LockMode::EXCLUSIVE, table_oid, id)) {
-          std::cout << "seq_scan_executor: LockRow return false!" << std::endl;
+          LOG_DEBUG("seq_scan_executor: LockRow return false!");
           throw ExecutionException("seq_scan_executor: LockRow return false!\n");
         }
+//        LOG_DEBUG("EXCLUSIVE lock!");
       } else if (txn->GetIsolationLevel() != IsolationLevel::READ_UNCOMMITTED
                  && !txn->IsRowExclusiveLocked(table_oid, id)) {
         if(!lock_manager->LockRow(txn, LockManager::LockMode::SHARED, table_oid, id)) {
-          std::cout << "seq_scan_executor: LockRow return false!" << std::endl;
+          LOG_DEBUG("seq_scan_executor: LockRow return false!");
           throw ExecutionException("seq_scan_executor: LockRow return false!\n");
         }
+//        LOG_DEBUG("SHAREDS lock!");
       }
 
       auto [meta, tup] = p_iterator_->GetTuple();
       if (meta.is_deleted_) {
         lock_manager->UnlockRow(txn, table_oid, tup.GetRid(), true);
+        LOG_DEBUG("force unlock because meta.is_deleted_ is true!");
       } else {
         *tuple = tup;
         *rid = tup.GetRid();
         p_iterator_->operator++();
-        if (!exec_ctx_->IsDelete()&& txn->GetIsolationLevel() == IsolationLevel::READ_COMMITTED
+        if (!exec_ctx_->IsDelete() && txn->GetIsolationLevel() == IsolationLevel::READ_COMMITTED
             && !txn->IsRowExclusiveLocked(table_oid, *rid) ) {
           lock_manager->UnlockRow(txn, table_oid, *rid);
         }

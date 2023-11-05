@@ -41,11 +41,12 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     TupleMeta meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
     table_info_->table_->UpdateTupleMeta(meta, id);
     delete_cnt_ += 1;
-    TableWriteRecord write_record {table_info_->oid_, id, table_info_->table_.get(), WType::DELETE};
+    TableWriteRecord write_record (table_info_->oid_, id, table_info_->table_.get());
+    write_record.wtype_ = WType::DELETE;
     exec_ctx_->GetTransaction()->AppendTableWriteRecord(write_record);
     // 删除对应索引
     for (auto index : table_indexes) {
-      IndexWriteRecord  record{id, table_info_->oid_, WType::DELETE, tup, index->index_oid_, exec_ctx_->GetCatalog()};
+      IndexWriteRecord  record(id, table_info_->oid_, WType::DELETE, tup, index->index_oid_, exec_ctx_->GetCatalog());
       exec_ctx_->GetTransaction()->AppendIndexWriteRecord(record);
       index->index_->DeleteEntry(
           tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()), tup.GetRid(),

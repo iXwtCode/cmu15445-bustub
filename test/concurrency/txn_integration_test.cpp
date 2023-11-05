@@ -44,7 +44,7 @@ void Test1(IsolationLevel lvl) {
 }
 
 // NOLINTNEXTLINE
-TEST(VisibilityTest, DISABLED_TestA) {
+TEST(VisibilityTest, TestA) {
   // only this one will be public :)
   Test1(IsolationLevel::READ_COMMITTED);
 }
@@ -56,7 +56,7 @@ TEST(IsolationLevelTest, InsertTestA) {
 }
 
 // NOLINTNEXTLINE
-TEST(IsolationLevelTest, DISABLED_DeleteTestA) {
+TEST(IsolationLevelTest, DeleteTestA) {
   ExpectTwoTxn("DeleteTestA.1", IsolationLevel::READ_COMMITTED, IsolationLevel::READ_UNCOMMITTED, false, IS_DELETE,
                ExpectedOutcome::BlockOnRead);
 }
