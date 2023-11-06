@@ -76,8 +76,10 @@ class LockManager {
     std::mutex latch_;
     void Remove(Transaction *txn) {
       for (auto it = request_queue_.begin(); it != request_queue_.end(); ++it) {
-        request_queue_.erase(it);
-        break;
+        if ((*it)->txn_id_ == txn->GetTransactionId()) {
+          request_queue_.erase(it);
+          break;
+        }
       }
     }
   };
@@ -330,13 +332,12 @@ class LockManager {
   auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, LockMode old_lock_mode, const table_oid_t &oid) -> bool;
   auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, LockMode old_lock_mode, const table_oid_t &oid,
                       const RID &rid) -> bool;
-  auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool;
+  auto AreLocksCompatible(LockMode curr, LockMode requested_lock_mode) -> bool;
   void CheckCanTxnTakeLock(Transaction *txn, LockMode lock_mode);
-//  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
+  //  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
   auto CanLockUpgrade(LockMode curr_lock_mode, LockMode requested_lock_mode) -> bool;
   auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
-  auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
-                 std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
+  auto FindCycle(txn_id_t tid, std::set<txn_id_t> &active, std::unordered_set<txn_id_t> &safe) -> bool;
 
   auto GetTableLockSet(Transaction *txn, LockMode lock_mode) -> std::shared_ptr<std::unordered_set<table_oid_t>>;
   auto GetRowLockSet(Transaction *txn, LockMode lock_mode)
@@ -347,7 +348,8 @@ class LockManager {
   void RemoveFromLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid);
   auto TryGetLockMode(Transaction *txn, const table_oid_t &oid) -> std::optional<LockMode>;
   auto TryGetLockMode(Transaction *txn, const table_oid_t &oid, const RID &rid) -> std::optional<LockMode>;
-  auto CanGrantLock(const std::shared_ptr<LockRequestQueue>& que, std::shared_ptr<LockRequest> lock_request) -> bool;
+  auto CanGrantLock(const std::shared_ptr<LockRequestQueue> &que, const std::shared_ptr<LockRequest> &lock_request)
+      -> bool;
   void UnlockAll();
 
   void BuildWaitForGraph();

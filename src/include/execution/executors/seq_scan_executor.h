@@ -15,13 +15,13 @@
 #include <memory>
 #include <vector>
 
+#include "concurrency/lock_manager.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/seq_scan_plan.h"
 #include "storage/table/table_heap.h"
 #include "storage/table/table_iterator.h"
 #include "storage/table/tuple.h"
-#include "concurrency/lock_manager.h"
 
 namespace bustub {
 
@@ -55,7 +55,7 @@ class SeqScanExecutor : public AbstractExecutor {
   /** The sequential scan plan node to be executed */
   const SeqScanPlanNode *plan_;
   std::unique_ptr<TableIterator> p_iterator_;
-  bool finished_ {false};
-//  bool finished_ {false};
+  bool finished_{false};
+  //  bool finished_ {false};
 };
 }  // namespace bustub

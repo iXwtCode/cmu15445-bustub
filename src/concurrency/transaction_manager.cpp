@@ -35,18 +35,22 @@ void TransactionManager::Abort(Transaction *txn) {
   /* TODO: revert all the changes in write set */
   auto table_write_set = txn->GetWriteSet();
   auto index_write_set = txn->GetIndexWriteSet();
-  for (auto &[tid, rid, table_heap, wtype] : *table_write_set) {
+  for (auto record = table_write_set->rbegin(); record != table_write_set->rend(); ++record) {
+    auto [tid, rid, table_heap, wtype] = *record;
     if (wtype == WType::INSERT) {
-      TupleMeta new_meta {INVALID_TXN_ID, INVALID_TXN_ID, false};
+      TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
       table_heap->UpdateTupleMeta(new_meta, rid);
+      LOG_DEBUG("revert from insert");
     } else if (wtype == WType::DELETE) {
-      TupleMeta new_meta {INVALID_TXN_ID, INVALID_TXN_ID, true};
+      TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
       table_heap->UpdateTupleMeta(new_meta, rid);
+      LOG_DEBUG("revert from delete");
     }
   }
   table_write_set->clear();
 
-  for (auto [rid, table_oid, wtype, tuple, old_tuple, index_oid, catalog] : *index_write_set) {
+  for (auto record = index_write_set->rbegin(); record != index_write_set->rend(); ++record) {
+    auto [rid, table_oid, wtype, tuple, _, index_oid, catalog] = *record;
     auto index = catalog->GetIndex(index_oid);
     if (wtype == WType::DELETE) {
       index->index_->InsertEntry(tuple, rid, txn);
@@ -55,9 +59,9 @@ void TransactionManager::Abort(Transaction *txn) {
     }
   }
   index_write_set->clear();
+  ReleaseLocks(txn);
   txn->SetState(TransactionState::ABORTED);
   txn->UnlockTxn();
-  ReleaseLocks(txn);
 }
 
 void TransactionManager::BlockAllTransactions() { UNIMPLEMENTED("block is not supported now!"); }

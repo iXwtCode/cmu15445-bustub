@@ -30,12 +30,12 @@ void InsertExecutor::Init() {
   auto lock_manager = exec_ctx_->GetLockManager();
   auto txn = exec_ctx_->GetTransaction();
   try {
-//    std::cout << "insert init try!" << std::endl;
+    //    std::cout << "insert init try!" << std::endl;
     if (!lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, table_info_->oid_)) {
       throw ExecutionException("error: LockTale retrun fasle!\n");
     }
-  } catch(TransactionAbortException &e) {
-//    std::cout << "insert: " << e.GetInfo() << std::endl;
+  } catch (TransactionAbortException &e) {
+    //    std::cout << "insert: " << e.GetInfo() << std::endl;
     throw ExecutionException("failed to lock\n" + e.GetInfo());
   }
 }
@@ -52,27 +52,26 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   auto lock_manager = exec_ctx_->GetLockManager();
   auto write_set = txn->GetWriteSet();
   while (child_executor_->Next(&tup, &id)) {
-//    try {
-////      locked_rids_.insert(id);
-//      lock_manager->LockRow(txn, LockManager::LockMode::EXCLUSIVE, table_info_->oid_, id);
-//    } catch (TransactionAbortException &e) {
-//      throw ExecutionException("error in insert excutor next\n" + e.GetInfo());
-//    }
-    TupleMeta meta {INVALID_TXN_ID, INVALID_TXN_ID, false};
+    //    try {
+    ////      locked_rids_.insert(id);
+    //      lock_manager->LockRow(txn, LockManager::LockMode::EXCLUSIVE, table_info_->oid_, id);
+    //    } catch (TransactionAbortException &e) {
+    //      throw ExecutionException("error in insert excutor next\n" + e.GetInfo());
+    //    }
+    TupleMeta meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
     auto rid_insert = table_info_->table_->InsertTuple(meta, tup, lock_manager, txn, table_info_->oid_);
     // 更新 index
     if (rid_insert.has_value()) {
       num_inserted_ += 1;
-      TableWriteRecord record{table_info_->oid_, id, table_info_->table_.get()};
+      TableWriteRecord record{table_info_->oid_, rid_insert.value(), table_info_->table_.get()};
       record.wtype_ = WType::INSERT;
       txn->AppendTableWriteRecord(record);
       for (auto index : table_indexes) {
         index->index_->InsertEntry(
             tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()),
-            rid_insert.value(), exec_ctx_->GetTransaction()
-        );
-        txn->AppendIndexWriteRecord(IndexWriteRecord {id, table_info_->oid_, WType::INSERT
-                                                     , tup, index->index_oid_, exec_ctx_->GetCatalog()});
+            rid_insert.value(), exec_ctx_->GetTransaction());
+        txn->AppendIndexWriteRecord(IndexWriteRecord{rid_insert.value(), table_info_->oid_, WType::INSERT, tup,
+                                                     index->index_oid_, exec_ctx_->GetCatalog()});
       }
     }
   }
