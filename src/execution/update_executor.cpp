@@ -28,16 +28,11 @@ void UpdateExecutor::Init() {
   Tuple tup;
   RID rid;
   auto table_indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-
   child_executor_->Init();
   flag_ = false;
   updated_cnt_ = 0;
-  while (child_executor_->Next(&tup, &rid)) {
-    // 从 table 中删除 tuple
-    TupleMeta meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
-    table_info_->table_->UpdateTupleMeta(meta, rid);
-    updated_cnt_ += 1;
 
+  while (child_executor_->Next(&tup, &rid)) {
     // 计算新 tuple
     std::vector<Value> vec;
     for (const auto &expr : plan_->target_expressions_) {
@@ -45,20 +40,38 @@ void UpdateExecutor::Init() {
       vec.emplace_back(val);
     }
     Tuple insert_tup(vec, &table_info_->schema_);
+    updated_cnt_ += 1;
 
-    // 新 tuple 插入 table
+    // #ifdef TERRIER_BENCH_ENABLE_UPDATE
+    //     auto meta = table_info_->table_->GetTupleMeta(rid);
     TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
-    auto new_rid = table_info_->table_->InsertTuple(new_meta, insert_tup);
-
-    // 从索引中删除旧值，插入新值
+    table_info_->table_->UpdateTupleInPlaceUnsafe(new_meta, insert_tup, rid);
     for (auto index : table_indexes) {
       index->index_->DeleteEntry(
           tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()), tup.GetRid(),
           exec_ctx_->GetTransaction());
       index->index_->InsertEntry(
-          insert_tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()),
-          new_rid.value(), exec_ctx_->GetTransaction());
+          insert_tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()), rid,
+          exec_ctx_->GetTransaction());
     }
+    // #else
+    //     // 从 table 中删除 tuple
+    //     TupleMeta meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
+    //     table_info_->table_->UpdateTupleMeta(meta, rid);
+    //
+    //     // 新 tuple 插入 table
+    //     TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
+    //     auto new_rid = table_info_->table_->InsertTuple(new_meta, insert_tup);
+    //     // 从索引中删除旧值，插入新值
+    //     for (auto index : table_indexes) {
+    //       index->index_->DeleteEntry(
+    //           tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()), tup.GetRid(),
+    //           exec_ctx_->GetTransaction());
+    //       index->index_->InsertEntry(
+    //           insert_tup.KeyFromTuple(table_info_->schema_, index->key_schema_, index->index_->GetKeyAttrs()),
+    //           new_rid.value(), exec_ctx_->GetTransaction());
+    //     }
+    // #endif
   }
 }
 

@@ -29,7 +29,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   request_que->latch_.lock();
   table_lock_map_latch_.unlock();
 
-  for (auto request : request_que->request_queue_) {  // NOLINT
+  for (auto request : request_que->request_queue_) {  
     if (request->txn_id_ == txn->GetTransactionId()) {
       if (request->lock_mode_ == lock_mode) {
         request_que->latch_.unlock();

@@ -17,6 +17,7 @@
 #include "common/rid.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/expressions/constant_value_expression.h"
 #include "execution/plans/index_scan_plan.h"
 #include "storage/index/b_plus_tree_index.h"
 #include "storage/table/tuple.h"
@@ -48,5 +49,7 @@ class IndexScanExecutor : public AbstractExecutor {
   TableInfo *table_info_;
   BPlusTreeIndexForTwoIntegerColumn *tree_;
   BPlusTreeIndexIteratorForTwoIntegerColumn iterator_;
+  std::vector<RID> rids_;
+  std::vector<RID>::iterator rid_iter_;
 };
 }  // namespace bustub

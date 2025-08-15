@@ -32,7 +32,6 @@ void TransactionManager::Commit(Transaction *txn) {
 }
 
 void TransactionManager::Abort(Transaction *txn) {
-  /* TODO: revert all the changes in write set */
   auto table_write_set = txn->GetWriteSet();
   auto index_write_set = txn->GetIndexWriteSet();
   for (auto record = table_write_set->rbegin(); record != table_write_set->rend(); ++record) {

@@ -49,6 +49,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto txn = exec_ctx_->GetTransaction();
   auto lock_manager = exec_ctx_->GetLockManager();
   auto table_oid = plan_->GetTableOid();
+  auto table_info = exec_ctx_->GetCatalog()->GetTable(table_oid);
   while (!p_iterator_->IsEnd()) {
     auto id = p_iterator_->GetRID();
     try {
@@ -68,10 +69,13 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       }
 
       auto [meta, tup] = p_iterator_->GetTuple();
-      if (meta.is_deleted_ && (txn->IsRowSharedLocked(table_oid, id) || txn->IsRowExclusiveLocked(table_oid, id))) {
-        lock_manager->UnlockRow(txn, table_oid, tup.GetRid(), true);
-        LOG_DEBUG("force unlock because meta.is_deleted_ is true!");
-      } else if (!meta.is_deleted_) {
+      if (meta.is_deleted_ || (plan_->filter_predicate_ != nullptr &&
+                               !plan_->filter_predicate_->Evaluate(&tup, table_info->schema_).GetAs<bool>())) {
+        if (txn->IsRowSharedLocked(table_oid, id) || txn->IsRowExclusiveLocked(table_oid, id)) {
+          lock_manager->UnlockRow(txn, table_oid, tup.GetRid(), true);
+          LOG_DEBUG("force unlock because meta.is_deleted_ is true!");
+        }
+      } else {
         *tuple = tup;
         *rid = tup.GetRid();
         p_iterator_->operator++();
